@@ -1,0 +1,60 @@
+name: deploy-oneflow
+
+# Trigger only when the oneflow service or shared code that it depends on changes.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/oneflow-mcp/**"
+      - "packages/core/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+      - "tsconfig.base.json"
+      - ".github/workflows/deploy-oneflow.yml"
+  workflow_dispatch:
+
+# OIDC federation to Azure — no long-lived secrets in GitHub.
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-oneflow
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: oneflow-prod
+    defaults:
+      run:
+        working-directory: packages/oneflow-mcp
+
+    env:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      ONEFLOW_API_TOKEN: ${{ secrets.ONEFLOW_API_TOKEN }}
+      ONEFLOW_USER_EMAIL: ${{ vars.ONEFLOW_USER_EMAIL }}
+      MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install azd
+        uses: Azure/setup-azd@v2
+
+      - name: Log in to Azure (OIDC)
+        run: azd auth login --client-id "$AZURE_CLIENT_ID" --federated-credential-provider github --tenant-id "$AZURE_TENANT_ID"
+
+      - name: Provision infrastructure
+        run: azd provision --no-prompt
+
+      - name: Deploy service
+        run: azd deploy oneflow-mcp --no-prompt
+
+      - name: Print endpoint
+        run: azd env get-values | grep SERVICE_ONEFLOW_MCP_ENDPOINT_URL || true
