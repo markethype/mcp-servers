@@ -2,7 +2,7 @@ import { z } from "zod";
 import { loadCommonEnv, type CommonEnv } from "@mcp-servers/core";
 
 const oneflowEnvSchema = z.object({
-  ONEFLOW_API_TOKEN: z.string().min(1, "ONEFLOW_API_TOKEN is required"),
+  ONEFLOW_API_TOKEN: z.string().default(""),
   ONEFLOW_USER_EMAIL: z.string().optional(),
   ONEFLOW_BASE_URL: z.string().url().default("https://api.oneflow.com"),
 });

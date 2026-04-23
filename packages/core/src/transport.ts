@@ -13,6 +13,15 @@ export interface RunServerOptions {
   /** Port to listen on (mode=http). Default 3000. */
   port?: number;
   logger?: Logger;
+  /**
+   * HTTP mode only. When provided, called per request with the incoming
+   * headers to produce a fresh McpServer (and thus a fresh service client).
+   * Use this to read a per-user service key from a custom request header
+   * (e.g. X-Leadfeeder-Api-Key) so each caller can supply their own key
+   * without it being baked into the shared server process.
+   * Falls back to `server` when not provided.
+   */
+  serverFactory?: (headers: Record<string, string | string[] | undefined>) => McpServer;
 }
 
 export async function runServer(server: McpServer, opts: RunServerOptions): Promise<void> {
@@ -38,16 +47,21 @@ export async function runServer(server: McpServer, opts: RunServerOptions): Prom
 
   // Stateless mode per Microsoft ACA sample: create a fresh transport per
   // request. This is safe because Streamable HTTP is request/response, not a
-  // persistent WebSocket.
+  // persistent WebSocket. When serverFactory is provided we also create a
+  // fresh McpServer per request so each caller's headers (e.g. a per-user
+  // service API key) are reflected in the server's tool handlers.
   const handleMcp = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const effectiveServer = opts.serverFactory
+        ? opts.serverFactory(req.headers as Record<string, string | string[] | undefined>)
+        : server;
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
       });
       res.on("close", () => {
         transport.close().catch(() => {});
       });
-      await server.connect(transport);
+      await effectiveServer.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch (err) {
       next(err);

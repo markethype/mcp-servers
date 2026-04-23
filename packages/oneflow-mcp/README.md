@@ -20,7 +20,7 @@ Set in environment or `.env`:
 
 | variable | required | notes |
 | --- | --- | --- |
-| `ONEFLOW_API_TOKEN` | yes | API token from Oneflow; sent as `X-Oneflow-API-Token` |
+| `ONEFLOW_API_TOKEN` | no | API token from Oneflow; sent as `X-Oneflow-API-Token`. Can be supplied per tool call instead (see below). |
 | `ONEFLOW_USER_EMAIL` | no | When set, sent as `X-Oneflow-User-Email` to scope permissions to that user |
 | `ONEFLOW_BASE_URL` | no | Defaults to `https://api.oneflow.com` |
 | `MCP_TRANSPORT` | no | `stdio` (default) or `http` |
@@ -36,16 +36,20 @@ pnpm --filter @mcp-servers/oneflow-mcp build
 ONEFLOW_API_TOKEN=xxx pnpm --filter @mcp-servers/oneflow-mcp start
 ```
 
-## Claude Desktop (local, stdio)
+## Claude Desktop setup
 
 macOS config: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+### Option A — stdio (local, recommended)
+
+Claude Desktop spawns the server as a child process. Set your API token once in the `env` block — no `MCP_AUTH_TOKEN` needed (the OS process model secures the stdio pipe).
 
 ```json
 {
   "mcpServers": {
     "oneflow": {
-      "command": "node",
-      "args": ["/Users/erik/Code/mcp-servers/packages/oneflow-mcp/dist/index.js"],
+      "command": "/path/to/node",
+      "args": ["/path/to/oneflow-mcp/dist/index.js"],
       "env": {
         "ONEFLOW_API_TOKEN": "your-token"
       }
@@ -53,6 +57,30 @@ macOS config: `~/Library/Application Support/Claude/claude_desktop_config.json`
   }
 }
 ```
+
+### Option B — HTTP (shared/remote server)
+
+Run the server as a persistent daemon (see [Build & run](#build--run)), then point Claude Desktop at it with two headers set once:
+
+```json
+{
+  "mcpServers": {
+    "oneflow": {
+      "url": "http://localhost:3000/mcp",
+      "headers": {
+        "Authorization": "Bearer <MCP_AUTH_TOKEN>",
+        "X-Oneflow-Api-Token": "your-token"
+      }
+    }
+  }
+}
+```
+
+The server validates `Authorization` (existing bearer check) and reads `X-Oneflow-Api-Token` per request to build a per-user client — so different Claude Desktop users can each supply their own token to the same server.
+
+### Option C — per tool call (no config required)
+
+Omit the `env` block and headers entirely. Each tool exposes an optional `api_token` argument that Claude will use if you mention your token in the prompt.
 
 Then restart Claude Desktop. You should see the seven `oneflow_*` tools listed.
 

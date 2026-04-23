@@ -19,7 +19,7 @@ Set in environment or `.env`:
 
 | variable | required | notes |
 | --- | --- | --- |
-| `LEADFEEDER_API_KEY` | yes | Personal settings → API keys in Leadfeeder |
+| `LEADFEEDER_API_KEY` | no | Personal settings → API keys in Leadfeeder. Can be supplied per tool call instead (see below). |
 | `LEADFEEDER_USER_AGENT` | no | Defaults to `mcp-servers/leadfeeder-mcp` |
 | `LEADFEEDER_BASE_URL` | no | Defaults to `https://api.leadfeeder.com` |
 | `MCP_TRANSPORT` | no | `stdio` (default) or `http` |
@@ -35,16 +35,20 @@ pnpm --filter @mcp-servers/leadfeeder-mcp build
 LEADFEEDER_API_KEY=lf_xxx pnpm --filter @mcp-servers/leadfeeder-mcp start
 ```
 
-## Claude Desktop (local, stdio)
+## Claude Desktop setup
 
 macOS config: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+### Option A — stdio (local, recommended)
+
+Claude Desktop spawns the server as a child process. Set your API key once in the `env` block — no `MCP_AUTH_TOKEN` needed (the OS process model secures the stdio pipe).
 
 ```json
 {
   "mcpServers": {
     "leadfeeder": {
-      "command": "node",
-      "args": ["/Users/erik/Code/mcp-servers/packages/leadfeeder-mcp/dist/index.js"],
+      "command": "/path/to/node",
+      "args": ["/path/to/leadfeeder-mcp/dist/index.js"],
       "env": {
         "LEADFEEDER_API_KEY": "lf_xxx"
       }
@@ -52,6 +56,30 @@ macOS config: `~/Library/Application Support/Claude/claude_desktop_config.json`
   }
 }
 ```
+
+### Option B — HTTP (shared/remote server)
+
+Run the server as a persistent daemon (see [Build & run](#build--run)), then point Claude Desktop at it with two headers set once:
+
+```json
+{
+  "mcpServers": {
+    "leadfeeder": {
+      "url": "http://localhost:3000/mcp",
+      "headers": {
+        "Authorization": "Bearer <MCP_AUTH_TOKEN>",
+        "X-Leadfeeder-Api-Key": "lf_xxx"
+      }
+    }
+  }
+}
+```
+
+The server validates `Authorization` (existing bearer check) and reads `X-Leadfeeder-Api-Key` per request to build a per-user client — so different Claude Desktop users can each supply their own key to the same server.
+
+### Option C — per tool call (no config required)
+
+Omit the `env` block and headers entirely. Each tool exposes an optional `api_key` argument that Claude will use if you mention your key in the prompt.
 
 Then restart Claude Desktop. You should see the six `leadfeeder_*` tools listed.
 

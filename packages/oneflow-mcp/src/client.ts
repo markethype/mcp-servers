@@ -6,8 +6,12 @@ import type { OneflowEnv } from "./config.js";
  */
 export class OneflowClient {
   private readonly http: HttpClient;
+  private readonly cfg: OneflowEnv;
+  private readonly logger?: Logger;
 
   constructor(cfg: OneflowEnv, logger?: Logger) {
+    this.cfg = cfg;
+    this.logger = logger;
     const defaultHeaders: Record<string, string> = {
       "X-Oneflow-API-Token": cfg.ONEFLOW_API_TOKEN,
     };
@@ -19,6 +23,11 @@ export class OneflowClient {
       defaultHeaders,
       logger,
     });
+  }
+
+  /** Return a new client that uses the given API token instead of the configured one. */
+  withApiToken(apiToken: string): OneflowClient {
+    return new OneflowClient({ ...this.cfg, ONEFLOW_API_TOKEN: apiToken }, this.logger);
   }
 
   ping(): Promise<unknown> {

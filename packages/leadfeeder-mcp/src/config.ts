@@ -2,7 +2,7 @@ import { z } from "zod";
 import { loadCommonEnv, type CommonEnv } from "@mcp-servers/core";
 
 const leadfeederEnvSchema = z.object({
-  LEADFEEDER_API_KEY: z.string().min(1, "LEADFEEDER_API_KEY is required"),
+  LEADFEEDER_API_KEY: z.string().default(""),
   LEADFEEDER_USER_AGENT: z.string().default("mcp-servers/leadfeeder-mcp"),
   LEADFEEDER_BASE_URL: z.string().url().default("https://api.leadfeeder.com"),
 });

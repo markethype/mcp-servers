@@ -23,11 +23,24 @@ async function main(): Promise<void> {
   });
   registerTools(mcp, client);
 
+  // In HTTP mode, create a fresh McpServer per request so the per-user
+  // X-Leadfeeder-Api-Key header is picked up by the tool handlers.
+  const serverFactory = isStdio
+    ? undefined
+    : (headers: Record<string, string | string[] | undefined>) => {
+        const apiKey = (headers["x-leadfeeder-api-key"] as string | undefined) || cfg.LEADFEEDER_API_KEY;
+        const requestClient = new LeadfeederClient({ ...cfg, LEADFEEDER_API_KEY: apiKey }, logger);
+        const requestServer = new McpServer({ name: "leadfeeder-mcp", version: "0.1.0" });
+        registerTools(requestServer, requestClient);
+        return requestServer;
+      };
+
   await runServer(mcp, {
     mode: cfg.MCP_TRANSPORT,
     authToken: cfg.MCP_AUTH_TOKEN,
     port: cfg.PORT,
     logger,
+    serverFactory,
   });
 }
 

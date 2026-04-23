@@ -2,23 +2,20 @@ import { HttpClient, HttpError, type Logger } from "@mcp-servers/core";
 import type { LeadfeederEnv } from "./config.js";
 
 /**
- * Thin wrapper around Leadfeeder's public API.
- *
- * The same API key works for both:
- *   - legacy endpoints (`/accounts`, `/accounts/{id}/...`) which use
- *     `Authorization: Token token=<key>`
- *   - new v1 endpoints (`/v1/...`) which use `X-Api-Key: <key>`
- *
- * We send both headers on every request so a single client works for both.
+ * Thin wrapper around the Leadfeeder v1 API.
+ * All endpoints use `X-Api-Key` for authentication.
  */
 export class LeadfeederClient {
   private readonly http: HttpClient;
+  private readonly cfg: LeadfeederEnv;
+  private readonly logger?: Logger;
 
   constructor(cfg: LeadfeederEnv, logger?: Logger) {
+    this.cfg = cfg;
+    this.logger = logger;
     this.http = new HttpClient({
       baseUrl: cfg.LEADFEEDER_BASE_URL,
       defaultHeaders: {
-        Authorization: `Token token=${cfg.LEADFEEDER_API_KEY}`,
         "X-Api-Key": cfg.LEADFEEDER_API_KEY,
         "User-Agent": cfg.LEADFEEDER_USER_AGENT,
       },
@@ -26,39 +23,15 @@ export class LeadfeederClient {
     });
   }
 
-  // ---- legacy API -----------------------------------------------------------
-
-  listAccounts(): Promise<unknown> {
-    return this.http.get("/accounts");
+  /** Return a new client that uses the given API key instead of the configured one. */
+  withApiKey(apiKey: string): LeadfeederClient {
+    return new LeadfeederClient({ ...this.cfg, LEADFEEDER_API_KEY: apiKey }, this.logger);
   }
 
-  listLeads(params: {
-    accountId: string;
-    customFeedId?: string;
-    startDate?: string;
-    endDate?: string;
-    fields?: string;
-  }): Promise<unknown> {
-    return this.http.get(`/accounts/${encodeURIComponent(params.accountId)}/leads`, {
-      custom_feed_id: params.customFeedId,
-      start_date: params.startDate,
-      end_date: params.endDate,
-      "fields[lead]": params.fields,
-    });
+  /** List all accounts, or fetch one with credit details when accountId is given. */
+  listAccounts(accountId?: string): Promise<unknown> {
+    return this.http.get("/v1/accounts", { account_id: accountId });
   }
-
-  listVisits(params: {
-    accountId: string;
-    startDate?: string;
-    endDate?: string;
-  }): Promise<unknown> {
-    return this.http.get(`/accounts/${encodeURIComponent(params.accountId)}/visits`, {
-      start_date: params.startDate,
-      end_date: params.endDate,
-    });
-  }
-
-  // ---- new v1 API -----------------------------------------------------------
 
   listCustomFeeds(params: { accountId: string; include?: string }): Promise<unknown> {
     return this.http.get("/v1/web-visits/custom-feeds", {
@@ -69,19 +42,21 @@ export class LeadfeederClient {
 
   listWebVisits(params: {
     accountId: string;
+    startDate: string;
+    endDate: string;
     customFeedId?: string;
-    startDate?: string;
-    endDate?: string;
+    include?: "company";
+    pageNum?: number;
     pageSize?: number;
-    pageCursor?: string;
   }): Promise<unknown> {
-    return this.http.get("/v1/web-visits", {
+    return this.http.get("/v1/web-visits/companies", {
       account_id: params.accountId,
-      custom_feed_id: params.customFeedId,
       start_date: params.startDate,
       end_date: params.endDate,
+      custom_feed_id: params.customFeedId,
+      include: params.include,
+      page_num: params.pageNum,
       page_size: params.pageSize,
-      page_cursor: params.pageCursor,
     });
   }
 
@@ -93,8 +68,8 @@ export class LeadfeederClient {
     return this.http.get(`/v1/companies/${encodeURIComponent(companyId)}`);
   }
 
-  enrichIp(ip: string): Promise<unknown> {
-    return this.http.get("/v1/ip-enrich", { ip });
+  enrichIp(ip: string, accountId: string): Promise<unknown> {
+    return this.http.get("/v1/ip/enrich", { ip, account_id: accountId });
   }
 }
 
