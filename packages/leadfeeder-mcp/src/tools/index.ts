@@ -95,16 +95,19 @@ export function registerTools(server: McpServer, client: LeadfeederClient): void
 
   server.tool(
     "leadfeeder_search_companies",
-    "Search companies in Leadfeeder's global database using firmographic filters (new v1 API). Pass the filter body as documented at https://docs.leadfeeder.com/api/public.",
+    "Search companies in Leadfeeder's global database using firmographic filters (new v1 API). Pass the filter body as documented at https://docs.leadfeeder.com/api/public. Note: Dealfront requires account_id as a query parameter for this endpoint — pass it as the top-level account_id argument.",
     {
+      account_id: z
+        .string()
+        .describe("Leadfeeder account ID (from leadfeeder_list_accounts). Sent as the required account_id query parameter."),
       body: z
         .record(z.unknown())
-        .describe("Raw request body for POST /v1/companies/search (filters, pagination, etc)."),
+        .describe("Raw request body for POST /v1/companies/search (filters, pagination, etc). Do not put account_id here — it must be a query parameter."),
       ...apiKeyParam,
     },
-    async ({ body, api_key }) => {
+    async ({ account_id, body, api_key }) => {
       try {
-        return ok(await resolveClient(client, api_key).searchCompanies(body));
+        return ok(await resolveClient(client, api_key).searchCompanies(body, account_id));
       } catch (err) {
         return fail(err);
       }
@@ -116,11 +119,12 @@ export function registerTools(server: McpServer, client: LeadfeederClient): void
     "Fetch a single company by its Leadfeeder company ID (new v1 API).",
     {
       company_id: z.string().describe("Leadfeeder company ID."),
+      account_id: z.string().optional().describe("Leadfeeder account ID (from leadfeeder_list_accounts). Recommended — pass this whenever you have it."),
       ...apiKeyParam,
     },
-    async ({ company_id, api_key }) => {
+    async ({ company_id, account_id, api_key }) => {
       try {
-        return ok(await resolveClient(client, api_key).getCompany(company_id));
+        return ok(await resolveClient(client, api_key).getCompany(company_id, account_id));
       } catch (err) {
         return fail(err);
       }

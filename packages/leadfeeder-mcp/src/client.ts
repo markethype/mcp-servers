@@ -60,12 +60,25 @@ export class LeadfeederClient {
     });
   }
 
-  searchCompanies(body: Record<string, unknown>): Promise<unknown> {
-    return this.http.post("/v1/companies/search", body);
+  searchCompanies(
+    body: Record<string, unknown>,
+    accountId?: string,
+  ): Promise<unknown> {
+    // Dealfront's API requires account_id as a query parameter on this endpoint
+    // (it ignores account_id placed inside the JSON body). Strip it from the body
+    // if a caller put it there by mistake so we don't send conflicting values.
+    const { account_id: bodyAccountId, ...rest } = body as Record<string, unknown>;
+    const effectiveAccountId =
+      accountId ?? (typeof bodyAccountId === "string" ? bodyAccountId : undefined);
+    return this.http.post("/v1/companies/search", rest, {
+      account_id: effectiveAccountId,
+    });
   }
 
-  getCompany(companyId: string): Promise<unknown> {
-    return this.http.get(`/v1/companies/${encodeURIComponent(companyId)}`);
+  getCompany(companyId: string, accountId?: string): Promise<unknown> {
+    return this.http.get(`/v1/companies/${encodeURIComponent(companyId)}`, {
+      account_id: accountId,
+    });
   }
 
   enrichIp(ip: string, accountId: string): Promise<unknown> {

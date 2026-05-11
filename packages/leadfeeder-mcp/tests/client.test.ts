@@ -38,9 +38,8 @@ describe("LeadfeederClient", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0]!;
-    expect(String(url)).toBe("https://api.leadfeeder.com/accounts");
+    expect(String(url)).toBe("https://api.leadfeeder.com/v1/accounts");
     const headers = init!.headers as Record<string, string>;
-    expect(headers.Authorization).toBe("Token token=test-key");
     expect(headers["X-Api-Key"]).toBe("test-key");
     expect(headers["User-Agent"]).toMatch(/mcp-servers/);
   });
@@ -57,7 +56,7 @@ describe("LeadfeederClient", () => {
     });
     const [url] = fetchMock.mock.calls[0]!;
     const u = new URL(String(url));
-    expect(u.pathname).toBe("/v1/web-visits");
+    expect(u.pathname).toBe("/v1/web-visits/companies");
     expect(u.searchParams.get("account_id")).toBe("123456");
     expect(u.searchParams.get("custom_feed_id")).toBe("feed-1");
     expect(u.searchParams.get("start_date")).toBe("2026-01-01");
@@ -65,13 +64,39 @@ describe("LeadfeederClient", () => {
     expect(u.searchParams.get("page_size")).toBe("50");
   });
 
-  it("posts JSON body for company search", async () => {
+  it("posts JSON body for company search with account_id as query param", async () => {
     const fetchMock = mockFetch({ body: { data: [] } });
     const client = new LeadfeederClient(baseCfg);
-    await client.searchCompanies({ filter: { country: "SE" } });
-    const [, init] = fetchMock.mock.calls[0]!;
+    await client.searchCompanies({ filter: { country: "SE" } }, "225653");
+    const [url, init] = fetchMock.mock.calls[0]!;
+    const u = new URL(String(url));
+    expect(u.pathname).toBe("/v1/companies/search");
+    expect(u.searchParams.get("account_id")).toBe("225653");
     expect(init!.method).toBe("POST");
     expect(JSON.parse(init!.body as string)).toEqual({ filter: { country: "SE" } });
     expect((init!.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+  });
+
+  it("strips account_id from body and uses it as query param if accidentally placed there", async () => {
+    const fetchMock = mockFetch({ body: { data: [] } });
+    const client = new LeadfeederClient(baseCfg);
+    await client.searchCompanies({ account_id: "225653", filter: { country: "SE" } });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    const u = new URL(String(url));
+    expect(u.searchParams.get("account_id")).toBe("225653");
+    expect(JSON.parse(init!.body as string)).toEqual({ filter: { country: "SE" } });
+  });
+
+  it("prefers top-level account_id over one inside the body", async () => {
+    const fetchMock = mockFetch({ body: { data: [] } });
+    const client = new LeadfeederClient(baseCfg);
+    await client.searchCompanies(
+      { account_id: "999999", filter: { country: "SE" } },
+      "225653",
+    );
+    const [url, init] = fetchMock.mock.calls[0]!;
+    const u = new URL(String(url));
+    expect(u.searchParams.get("account_id")).toBe("225653");
+    expect(JSON.parse(init!.body as string)).toEqual({ filter: { country: "SE" } });
   });
 });
