@@ -12,8 +12,8 @@ param leadfeederApiKey string
 @secure()
 param mcpAuthToken string
 
-@description('Container image tag (azd overrides at deploy time)')
-param imageTag string = 'latest'
+@description('Container image to deploy. Defaults to a placeholder; azd overrides at deploy time.')
+param leadfeederMcpImageName string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 var resourceToken = uniqueString(subscription().id, resourceGroup().id, environmentName)
 var commonTags = {
@@ -119,7 +119,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [
         {
           name: 'leadfeeder-mcp'
-          image: '${acr.properties.loginServer}/leadfeeder-mcp:${imageTag}'
+          image: leadfeederMcpImageName
           resources: {
             cpu: json('0.5')
             memory: '1.0Gi'

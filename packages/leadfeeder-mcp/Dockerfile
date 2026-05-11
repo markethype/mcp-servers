@@ -20,7 +20,7 @@ RUN pnpm --filter @mcp-servers/core... build \
  && pnpm --filter @mcp-servers/leadfeeder-mcp build
 
 # Produce a self-contained deploy folder with only production deps resolved.
-RUN pnpm --filter @mcp-servers/leadfeeder-mcp --prod deploy /deploy
+RUN pnpm --filter @mcp-servers/leadfeeder-mcp --prod deploy /deploy --legacy
 
 # ---- runtime ---------------------------------------------------------------
 FROM node:22-alpine AS runtime
