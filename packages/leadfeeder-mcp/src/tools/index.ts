@@ -95,14 +95,40 @@ export function registerTools(server: McpServer, client: LeadfeederClient): void
 
   server.tool(
     "leadfeeder_search_companies",
-    "Search companies in Leadfeeder's global database using firmographic filters (new v1 API). Pass the filter body as documented at https://docs.leadfeeder.com/api/public. Note: Dealfront requires account_id as a query parameter for this endpoint — pass it as the top-level account_id argument.",
+    [
+      "Search companies in Dealfront's global firmographic database (POST /v1/companies/search).",
+      "This is the unified Dealfront/Leadfeeder v1 API — same data as Dealfront Target/Discover.",
+      "",
+      "REQUIRED ARGUMENT FORMAT:",
+      "  account_id: top-level argument (sent as ?account_id=… query param). Do NOT put it in body.",
+      "  body.filters: must include at least ONE of these boolean keys with value true or false:",
+      "    has_phone, has_email, has_social_media_profiles, do_not_contact,",
+      "    has_financials_revenue, has_financials_earnings, has_financials_net_worth, has_ip_addresses.",
+      "",
+      "OPTIONAL: additional non-boolean filters (e.g. countries, industries) can be added alongside",
+      "the required boolean filter inside body.filters.",
+      "",
+      "PAGINATION: this endpoint does NOT accept page_num/page_size. See",
+      "https://docs.dealfront.com/api/public for the supported pagination format (cursor-based).",
+      "",
+      "EXAMPLE body: { \"filters\": { \"has_phone\": true, \"countries\": [\"SE\"] } }",
+    ].join("\n"),
     {
       account_id: z
         .string()
-        .describe("Leadfeeder account ID (from leadfeeder_list_accounts). Sent as the required account_id query parameter."),
+        .describe(
+          "Leadfeeder/Dealfront account ID (from leadfeeder_list_accounts). " +
+            "Sent as the required ?account_id=… query parameter. Do not put it in body.",
+        ),
       body: z
         .record(z.unknown())
-        .describe("Raw request body for POST /v1/companies/search (filters, pagination, etc). Do not put account_id here — it must be a query parameter."),
+        .describe(
+          "Request body. Must contain a 'filters' object with at least one boolean key " +
+            "from: has_phone, has_email, has_social_media_profiles, do_not_contact, " +
+            "has_financials_revenue, has_financials_earnings, has_financials_net_worth, has_ip_addresses. " +
+            "page_num/page_size are NOT supported here — see Dealfront docs for cursor pagination. " +
+            "Do not include account_id in the body.",
+        ),
       ...apiKeyParam,
     },
     async ({ account_id, body, api_key }) => {
