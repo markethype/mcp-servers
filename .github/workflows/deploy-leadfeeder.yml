@@ -32,11 +32,13 @@ jobs:
         working-directory: packages/leadfeeder-mcp
 
     env:
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # Identifiers (non-secret) — set as repo variables by `azd pipeline config`.
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
       AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      # Runtime secrets — set on the `leadfeeder-prod` environment.
       LEADFEEDER_API_KEY: ${{ secrets.LEADFEEDER_API_KEY }}
       MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN }}
 
